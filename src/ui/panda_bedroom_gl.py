@@ -239,6 +239,13 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._hud_hint: str = ''             # text shown in the popup
         self._hud_hint_timer: int = 0        # frames remaining to display hint
 
+        # ── Room upgrade tier ─────────────────────────────────────────────────
+        # Tier 0 = starter (8×8), Tier 1 = medium (10×10), Tier 2 = large (12×12)
+        # Costs: tier 0→1 = 500 coins, tier 1→2 = 1500 coins
+        self._room_tier: int = 0
+        # Internal doors unlocked at tier 1 (list of door dicts)
+        self._room_doors: list = []   # each: {'wall': 'N'/'S'/'E'/'W', 'label': str, 'style': int}
+
         # Animation timer — drives the panda walk each ~33 ms (≈30 fps)
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._tick_panda_walk)
@@ -250,6 +257,66 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         """Update trophy count and repaint."""
         self._achievement_count = count
         self.update()
+
+    # ── Room upgrade API ───────────────────────────────────────────────────────
+
+    # Half-size of the room per tier: tier0=4, tier1=5, tier2=6
+    _TIER_HALF = (4.0, 5.0, 6.0)
+    _TIER_COST = (0, 500, 1500)   # coins to upgrade to tier 1, tier 2
+
+    @property
+    def room_half(self) -> float:
+        """Half the room size in world units for the current tier."""
+        return self._TIER_HALF[min(self._room_tier, len(self._TIER_HALF) - 1)]
+
+    def get_room_tier(self) -> int:
+        return self._room_tier
+
+    def upgrade_room(self, new_tier: int) -> None:
+        """Set room tier (0–2) and rebuild any auto-doors on the new walls."""
+        old_tier = self._room_tier
+        self._room_tier = max(0, min(2, new_tier))
+        if self._room_tier > old_tier:
+            # Auto-add an interior door on the east wall when first upgrading
+            wall = 'E' if self._room_tier == 1 else 'N'
+            self._room_doors.append({
+                'wall': wall,
+                'label': f'Room {chr(64 + self._room_tier)}',
+                'style': 0,
+            })
+        self.update()
+
+    def add_room_door(self, wall: str = 'E', label: str = 'Room',
+                      style: int = 0) -> None:
+        """Add a named door on the given wall ('N','S','E','W')."""
+        self._room_doors.append({'wall': wall, 'label': label, 'style': style})
+        self.update()
+
+    def set_door_label(self, index: int, label: str) -> None:
+        """Change the label of door at *index*."""
+        if 0 <= index < len(self._room_doors):
+            self._room_doors[index]['label'] = label
+            self.update()
+
+    def cycle_door_style(self, index: int) -> None:
+        """Cycle the visual style of door at *index* (0→1→2→0)."""
+        if 0 <= index < len(self._room_doors):
+            self._room_doors[index]['style'] = (self._room_doors[index]['style'] + 1) % 3
+            self.update()
+
+    def play_bed_animation(self) -> None:
+        """Walk the bedroom panda to the bed and play a lay-down pose."""
+        bed = self.get_furniture('bed')
+        if bed:
+            tx, tz = getattr(bed, 'walk_x', bed.x), getattr(bed, 'walk_z', bed.z)
+        else:
+            tx, tz = -3.0, -2.0
+        def _lay_down():
+            # Tilt panda sideways for lying-in-bed pose
+            self._panda_facing_y = 90.0
+            self._panda_is_walking = False
+            self.update()
+        self.walk_panda_to(tx, tz, callback=_lay_down)
 
     def get_furniture(self, furniture_id: str) -> Optional[FurniturePiece]:
         """Return the FurniturePiece dataclass or None."""
@@ -836,12 +903,15 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
     def _draw_room(self) -> None:
         glDisable(GL_LIGHTING)
 
-        # Floor – wood planks 8×8 grid of 1×1 quads
-        for row in range(8):
-            for col in range(8):
-                x0 = -4.0 + col
+        half = self.room_half  # 4.0 / 5.0 / 6.0 depending on tier
+        grid = int(half * 2)
+
+        # Floor – wood planks grid of 1×1 quads
+        for row in range(grid):
+            for col in range(grid):
+                x0 = -half + col
                 x1 = x0 + 1.0
-                z0 = -4.0 + row
+                z0 = -half + row
                 z1 = z0 + 1.0
                 if (row + col) % 2 == 0:
                     glColor3f(*_COL_FLOOR_A)
@@ -882,16 +952,16 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
             glVertex3f(x0, 0.012, z1)
             glEnd()
 
-        # Back wall (Z=-4)
-        self._draw_wall_back()
-        # Left wall  (X=-4)
-        self._draw_wall_left()
-        # Right wall (X=4)
-        self._draw_wall_right()
+        # Back wall (Z=-half)
+        self._draw_wall_generic(-half, half, -half, is_back=True)
+        # Left wall  (X=-half)
+        self._draw_wall_generic(-half, half, -half, is_back=False, is_left=True)
+        # Right wall (X=half)
+        self._draw_wall_generic(-half, half,  half, is_back=False, is_left=False)
         # Ceiling
-        self._draw_ceiling()
+        self._draw_ceiling_generic(half)
         # Baseboards
-        self._draw_baseboards()
+        self._draw_baseboards_generic(half)
         # Fixed room fixtures (not interactive/draggable)
         self._draw_bed()
         self._draw_desk()
@@ -901,6 +971,9 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         self._draw_bookshelf()
         self._draw_rug()
         self._draw_potted_plant()
+        # Draw interior doors (upgrades)
+        for door in self._room_doors:
+            self._draw_interior_door(door, half)
 
         glEnable(GL_LIGHTING)
 
@@ -1197,6 +1270,250 @@ class PandaBedroomGL(QOpenGLWidget if OPENGL_AVAILABLE else QWidget):  # type: i
         glVertex3f(4.0 - t, h,   -4.0)
         glVertex3f(4.0 - t, h,    4.0)
         glEnd()
+
+    def _draw_wall_back(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(0.0, 0.0, 1.0)
+        glVertex3f(-4.0, 0.0, -4.0)
+        glVertex3f( 4.0, 0.0, -4.0)
+        glVertex3f( 4.0, 4.0, -4.0)
+        glVertex3f(-4.0, 4.0, -4.0)
+        glEnd()
+        # Wallpaper diamond pattern (simple GL_LINES grid)
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        x = -4.0
+        while x <= 4.0:
+            glVertex3f(x, 0.0, -3.99)
+            glVertex3f(x, 4.0, -3.99)
+            x += step
+        y = 0.0
+        while y <= 4.0:
+            glVertex3f(-4.0, y, -3.99)
+            glVertex3f( 4.0, y, -3.99)
+            y += step
+        glEnd()
+
+    def _draw_wall_left(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(1.0, 0.0, 0.0)
+        glVertex3f(-4.0, 0.0, -4.0)
+        glVertex3f(-4.0, 0.0,  4.0)
+        glVertex3f(-4.0, 4.0,  4.0)
+        glVertex3f(-4.0, 4.0, -4.0)
+        glEnd()
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        z = -4.0
+        while z <= 4.0:
+            glVertex3f(-3.99, 0.0, z)
+            glVertex3f(-3.99, 4.0, z)
+            z += step
+        y = 0.0
+        while y <= 4.0:
+            glVertex3f(-3.99, y, -4.0)
+            glVertex3f(-3.99, y,  4.0)
+            y += step
+        glEnd()
+
+    def _draw_wall_right(self) -> None:
+        glColor3f(*_COL_WALL)
+        glBegin(GL_QUADS)
+        glNormal3f(-1.0, 0.0, 0.0)
+        glVertex3f(4.0, 0.0,  4.0)
+        glVertex3f(4.0, 0.0, -4.0)
+        glVertex3f(4.0, 4.0, -4.0)
+        glVertex3f(4.0, 4.0,  4.0)
+        glEnd()
+        glColor3f(*_COL_WALL_DARK)
+        glBegin(GL_LINES)
+        step = 0.8
+        z = -4.0
+        while z <= 4.0:
+            glVertex3f(3.99, 0.0, z)
+            glVertex3f(3.99, 4.0, z)
+            z += step
+        y = 0.0
+        if is_back:
+            # Back wall at z=pos_v (pos_v is -half)
+            glBegin(GL_QUADS)
+            glNormal3f(0.0, 0.0, 1.0)
+            glVertex3f(-half, 0.0, pos_v)
+            glVertex3f( half, 0.0, pos_v)
+            glVertex3f( half, h,   pos_v)
+            glVertex3f(-half, h,   pos_v)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            x = -half
+            while x <= half:
+                glVertex3f(x, 0.0, pos_v + 0.01)
+                glVertex3f(x, h, pos_v + 0.01)
+                x += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(-half, y, pos_v + 0.01)
+                glVertex3f(half, y, pos_v + 0.01)
+                y += step
+            glEnd()
+        elif is_left:
+            # Left wall at x=pos_v (pos_v is -half)
+            glBegin(GL_QUADS)
+            glNormal3f(1.0, 0.0, 0.0)
+            glVertex3f(pos_v, 0.0, -half)
+            glVertex3f(pos_v, 0.0,  half)
+            glVertex3f(pos_v, h,    half)
+            glVertex3f(pos_v, h,   -half)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            z = -half
+            while z <= half:
+                glVertex3f(pos_v + 0.01, 0.0, z)
+                glVertex3f(pos_v + 0.01, h,   z)
+                z += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(pos_v + 0.01, y, -half)
+                glVertex3f(pos_v + 0.01, y,  half)
+                y += step
+            glEnd()
+        else:
+            # Right wall at x=pos_v (pos_v is +half)
+            glBegin(GL_QUADS)
+            glNormal3f(-1.0, 0.0, 0.0)
+            glVertex3f(pos_v, 0.0,  half)
+            glVertex3f(pos_v, 0.0, -half)
+            glVertex3f(pos_v, h,   -half)
+            glVertex3f(pos_v, h,    half)
+            glEnd()
+            glColor3f(*_COL_WALL_DARK)
+            glBegin(GL_LINES)
+            step = 0.8
+            z = -half
+            while z <= half:
+                glVertex3f(pos_v - 0.01, 0.0, z)
+                glVertex3f(pos_v - 0.01, h,   z)
+                z += step
+            y = 0.0
+            while y <= h:
+                glVertex3f(pos_v - 0.01, y, -half)
+                glVertex3f(pos_v - 0.01, y,  half)
+                y += step
+            glEnd()
+
+    def _draw_ceiling_generic(self, half: float) -> None:
+        h = 4.0
+        glColor3f(*_COL_CEILING)
+        glBegin(GL_QUADS)
+        glNormal3f(0.0, -1.0, 0.0)
+        glVertex3f(-half, h, -half)
+        glVertex3f( half, h, -half)
+        glVertex3f( half, h,  half)
+        glVertex3f(-half, h,  half)
+        glEnd()
+        glColor3f(*_COL_CEILING_LINE)
+        glBegin(GL_LINES)
+        step = 1.0
+        x = -half
+        while x <= half:
+            glVertex3f(x, h - 0.01, -half)
+            glVertex3f(x, h - 0.01,  half)
+            x += step
+        z = -half
+        while z <= half:
+            glVertex3f(-half, h - 0.01, z)
+            glVertex3f( half, h - 0.01, z)
+            z += step
+        glEnd()
+
+    def _draw_baseboards_generic(self, half: float) -> None:
+        glColor3f(*_COL_BASEBOARD)
+        bh = 0.12
+        t  = 0.05
+        for verts in [
+            # back wall
+            [(-half, 0.0, -half + t), (half, 0.0, -half + t),
+             (half, bh, -half + t), (-half, bh, -half + t)],
+            # left wall
+            [(-half + t, 0.0, -half), (-half + t, 0.0, half),
+             (-half + t, bh, half), (-half + t, bh, -half)],
+            # right wall
+            [(half - t, 0.0, half), (half - t, 0.0, -half),
+             (half - t, bh, -half), (half - t, bh, half)],
+        ]:
+            glBegin(GL_QUADS)
+            for v in verts:
+                glVertex3f(*v)
+            glEnd()
+
+    def _draw_interior_door(self, door: dict, half: float) -> None:
+        """Draw a named interior door cut into the appropriate wall."""
+        wall   = door.get('wall', 'E')
+        label  = door.get('label', 'Room')
+        style  = door.get('style', 0)
+        # Door colours per style
+        _STYLES = [
+            (0.45, 0.28, 0.12),   # natural wood
+            (0.20, 0.35, 0.55),   # painted blue
+            (0.30, 0.50, 0.28),   # painted green
+        ]
+        col = _STYLES[style % len(_STYLES)]
+
+        dw = 0.55   # half-width of door opening
+        dh = 2.2    # door height
+        frame_t = 0.08
+
+        glColor3f(*col)
+        if wall == 'E':
+            # Right wall (x=+half), door centred at z=0
+            self._draw_box(half - frame_t, 0.0, -dw, half, dh, dw)   # door panel
+            glColor3f(0.85, 0.80, 0.70)
+            # Door frame top
+            self._draw_box(half - 0.12, dh, -dw - 0.08, half, dh + 0.08, dw + 0.08)
+            # Handle
+            glColor3f(*_COL_GOLD)
+            self._draw_box(half - 0.12, 1.0, -0.08, half - 0.06, 1.08, 0.08)
+        elif wall == 'N':
+            # Back wall (z=-half), door centred at x=0
+            self._draw_box(-dw, 0.0, -half, dw, dh, -half + frame_t)
+            glColor3f(0.85, 0.80, 0.70)
+            self._draw_box(-dw - 0.08, dh, -half, dw + 0.08, dh + 0.08, -half + 0.12)
+            glColor3f(*_COL_GOLD)
+            self._draw_box(-0.08, 1.0, -half + 0.06, 0.08, 1.08, -half + 0.12)
+        elif wall == 'W':
+            # Left wall (x=-half)
+            self._draw_box(-half, 0.0, -dw, -half + frame_t, dh, dw)
+            glColor3f(0.85, 0.80, 0.70)
+            self._draw_box(-half, dh, -dw - 0.08, -half + 0.12, dh + 0.08, dw + 0.08)
+            glColor3f(*_COL_GOLD)
+            self._draw_box(-half + 0.06, 1.0, -0.08, -half + 0.12, 1.08, 0.08)
+        else:  # 'S' front wall (no explicit front wall drawn; show on floor as marker)
+            glColor3f(*col)
+            self._draw_box(-dw, 0.001, half - 0.3, dw, 0.005, half)
+
+    # ── Legacy single-size wall methods (kept for backward compatibility) ──────
+
+    def _draw_wall_back(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, -4.0, is_back=True)
+
+    def _draw_wall_left(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, -4.0, is_back=False, is_left=True)
+
+    def _draw_wall_right(self) -> None:
+        self._draw_wall_generic(-4.0, 4.0, 4.0, is_back=False, is_left=False)
+
+    def _draw_ceiling(self) -> None:
+        self._draw_ceiling_generic(4.0)
+
+    def _draw_baseboards(self) -> None:
+        self._draw_baseboards_generic(4.0)
 
     # ── Furniture dispatcher ──────────────────────────────────────────────────
 
